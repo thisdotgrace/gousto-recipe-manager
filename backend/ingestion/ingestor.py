@@ -3,11 +3,17 @@ from time import sleep
 from .loader import load_recipe, load_themes
 from db.session import SessionLocal, engine
 from db.base import Base
-from .api import fetch_themes, fetch_categories, fetch_all_recipes_for_category, fetch_recipe_details
+from .api import (
+    fetch_themes,
+    fetch_categories,
+    fetch_all_recipes_for_category,
+    fetch_recipe_details,
+)
 
 GOUSTO_API_URL = "https://production-api.gousto.co.uk/cmsreadbroker/v1/"
 
-REQUEST_DELAY = 0.1 
+REQUEST_DELAY = 0.1
+
 
 def ingest_all(session):
 
@@ -19,7 +25,7 @@ def ingest_all(session):
         "categories": len(categories),
         "recipes_processed": 0,
         "failed_recipes": 0,
-        "duplicates_estimated": 0
+        "duplicates_estimated": 0,
     }
 
     with session:
@@ -40,8 +46,8 @@ def ingest_all(session):
 
                 except requests.RequestException as e:
                     print(f"Failed to fetch {recipe['slug']}: {e}")
-                    metrics['failed_recipes'] += 1
-        
+                    metrics["failed_recipes"] += 1
+
         session.commit()
         print("\n=== INGESTION SUMMARY ===")
         print(f"Themes: {metrics['themes']}")
@@ -49,7 +55,7 @@ def ingest_all(session):
         print(f"Recipes processed: {metrics['recipes_processed']}")
         print(f"Failed recipe fetches: {metrics['failed_recipes']}")
 
-          
+
 if __name__ == "__main__":
     Base.metadata.create_all(bind=engine)
     ingest_all(SessionLocal())

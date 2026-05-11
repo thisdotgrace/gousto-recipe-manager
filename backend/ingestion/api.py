@@ -11,15 +11,18 @@ def get_response(endpoint):
     response.raise_for_status()
     return response.json()
 
+
 def fetch_themes():
     """Fetches themes from the API and transforms them for loading."""
     response = get_response("themes")
     themes = response["data"]["entries"]
     return [transform_theme_data(theme) for theme in themes]
 
+
 def fetch_categories(themes):
     """Extracts unique category slugs from the list of themes."""
     return sorted({c for t in themes for c in t.get("categories", [])})
+
 
 def fetch_all_recipes_for_category(category, limit=60, max_pages=50):
     """Fetches all recipes for a given category, handling pagination."""
@@ -28,12 +31,13 @@ def fetch_all_recipes_for_category(category, limit=60, max_pages=50):
     for page in range(max_pages):
         offset = page * limit
 
-        response = get_response(f"recipes?category={category}&limit={limit}&offset={offset}")
+        response = get_response(
+            f"recipes?category={category}&limit={limit}&offset={offset}"
+        )
         batch = response["data"]["entries"]
         all_recipes.extend(batch)
 
         print(f"{category}: fetched {len(batch)} (page {page})")
-
 
         if len(batch) < limit:
             break

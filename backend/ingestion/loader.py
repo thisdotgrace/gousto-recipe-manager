@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from models import Recipe, Cuisine, Ingredient, Category, RecipeMacros
 from models.theme import Theme
 
+
 def get_or_create(session: Session, model, defaults=None, **kwargs):
     """Generic get-or-create helper for SQLAlchemy models."""
     obj = session.query(model).filter_by(**kwargs).first()
@@ -15,6 +16,7 @@ def get_or_create(session: Session, model, defaults=None, **kwargs):
     session.flush()  # ensures obj gets an ID without full commit
     return obj
 
+
 def load_recipe(session: Session, data: dict):
     """
     Loads a single transformed recipe into the database.
@@ -23,11 +25,7 @@ def load_recipe(session: Session, data: dict):
 
     cuisine = None
     if data.get("cuisine"):
-        cuisine = get_or_create(
-            session,
-            Cuisine,
-            name=data["cuisine"]
-        )
+        cuisine = get_or_create(session, Cuisine, name=data["cuisine"])
 
     recipe = get_or_create(
         session,
@@ -37,7 +35,7 @@ def load_recipe(session: Session, data: dict):
         defaults={
             "title": data["title"],
             "image_url": data.get("image_url"),
-        }
+        },
     )
 
     # attach cuisine (safe even if already exists)
@@ -45,22 +43,14 @@ def load_recipe(session: Session, data: dict):
 
     ingredients = []
     for name in data.get("ingredients", []):
-        ingredient = get_or_create(
-            session,
-            Ingredient,
-            name=name
-        )
+        ingredient = get_or_create(session, Ingredient, name=name)
         ingredients.append(ingredient)
 
     recipe.ingredients = ingredients
 
     categories = []
     for slug in data.get("categories", []):
-        category = get_or_create(
-            session,
-            Category,
-            slug=slug
-        )
+        category = get_or_create(session, Category, slug=slug)
         categories.append(category)
 
     recipe.categories = categories
@@ -83,23 +73,16 @@ def load_recipe(session: Session, data: dict):
 
     return recipe
 
+
 def load_themes(session: Session, themes: list[dict]):
     """Loads themes and their associated categories into the database."""
     for theme_data in themes:
-        theme = get_or_create(
-            session,
-            Theme,
-            title=theme_data["title"]
-        )
+        theme = get_or_create(session, Theme, title=theme_data["title"])
 
         categories = []
 
         for slug in theme_data.get("categories", []):
-            category = get_or_create(
-                session,
-                Category,
-                slug=slug
-            )
+            category = get_or_create(session, Category, slug=slug)
             categories.append(category)
 
         theme.categories = categories

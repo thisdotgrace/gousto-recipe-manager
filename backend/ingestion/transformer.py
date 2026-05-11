@@ -1,5 +1,6 @@
 import re
 
+
 def clean_string(value: str) -> str:
     """Normalize a string for lookup/uniqueness.
 
@@ -43,7 +44,9 @@ def transform_recipe_data(d: dict, slug: str) -> dict:
         "slug": slug,
         "image_url": images[1]["image"] if len(images) > 1 else None,
         "cuisine": clean_string(d["cuisine"]["title"]) if d.get("cuisine") else None,
-        "ingredients": dedupe_list([clean_string(i["name"]) for i in d.get("ingredients", [])]),
+        "ingredients": dedupe_list(
+            [clean_string(i["name"]) for i in d.get("ingredients", [])]
+        ),
         "categories": [],
         "macros": {
             "kcal": nutritional_info.get("energy_kcal"),
@@ -54,8 +57,9 @@ def transform_recipe_data(d: dict, slug: str) -> dict:
             "protein_g": mg_to_g(nutritional_info.get("protein_mg")),
             "fibre_g": mg_to_g(nutritional_info.get("fibre_mg")),
             "salt_g": mg_to_g(nutritional_info.get("salt_mg")),
-        }
+        },
     }
+
 
 def transform_theme_data(d: dict) -> dict:
     """Transform raw theme data from the API into a normalized format for loading."""
@@ -63,5 +67,5 @@ def transform_theme_data(d: dict) -> dict:
         "title": clean_string(d["title"]),
         "categories": dedupe_list(
             [clean_string(c["url"].split("/")[-1]) for c in d.get("categories", [])]
-        )
+        ),
     }

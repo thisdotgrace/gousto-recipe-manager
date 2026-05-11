@@ -23,10 +23,16 @@ class Recipe(Base):
 
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    cuisine_id: Mapped[int | None] = mapped_column(ForeignKey("cuisines.id"), nullable=True)
+    cuisine_id: Mapped[int | None] = mapped_column(
+        ForeignKey("cuisines.id"), nullable=True
+    )
 
-    cuisine: Mapped["Cuisine | None"] = relationship("Cuisine", back_populates="recipes")
-    macros: Mapped["RecipeMacros | None"] = relationship("RecipeMacros", back_populates="recipe", uselist=False)
+    cuisine: Mapped["Cuisine | None"] = relationship(
+        "Cuisine", back_populates="recipes"
+    )
+    macros: Mapped["RecipeMacros | None"] = relationship(
+        "RecipeMacros", back_populates="recipe", uselist=False
+    )
     categories: Mapped[list["Category"]] = relationship(
         "Category",
         secondary=recipe_categories,

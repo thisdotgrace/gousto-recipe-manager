@@ -3,6 +3,7 @@ from typing import Optional
 from ingredient_parser import parse_ingredient as parse_ing
 import re
 
+
 class Ingredient(BaseModel):
     name: str
     quantity: Optional[float] = None
@@ -41,10 +42,7 @@ class Ingredient(BaseModel):
                 quantity, unit = mult, "pcs"
 
             return cls(
-                name=name.strip().lower(),
-                quantity=quantity,
-                unit=unit,
-                raw_text=raw
+                name=name.strip().lower(), quantity=quantity, unit=unit, raw_text=raw
             )
 
         except Exception:
@@ -52,7 +50,7 @@ class Ingredient(BaseModel):
                 name=clean,
                 quantity=mult if mult != 1 else None,
                 unit="pcs" if mult != 1 else None,
-                raw_text=raw
+                raw_text=raw,
             )
 
     def __str__(self) -> str:
