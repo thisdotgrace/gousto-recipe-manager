@@ -1,0 +1,11 @@
+name: Autocomplete Recipes
+request:
+  method: GET
+  url: http://localhost:8000/recipes/autocomplete
+  params:
+    - name: q
+      value: "chicken"
+    - name: offset
+      value: "0"
+    - name: limit
+      value: "10"
