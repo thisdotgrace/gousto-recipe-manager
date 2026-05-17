@@ -22,6 +22,9 @@ class Recipe(Base):
     slug: Mapped[str] = mapped_column(String, unique=True)
 
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prep_time: Mapped[int | None] = mapped_column(nullable=True)
+    rating_average: Mapped[float | None] = mapped_column(nullable=True)
+    rating_count: Mapped[int | None] = mapped_column(nullable=True)
 
     cuisine_id: Mapped[int | None] = mapped_column(
         ForeignKey("cuisines.id"), nullable=True

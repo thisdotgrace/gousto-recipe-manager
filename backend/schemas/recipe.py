@@ -6,7 +6,7 @@ from .ingredient import Ingredient
 
 class Rating(BaseModel):
     average: Optional[float] = None
-    reviews: Optional[int] = None
+    count: Optional[int] = None
 
 
 class Recipe(BaseModel):
@@ -17,6 +17,7 @@ class Recipe(BaseModel):
     rating: Optional[Rating] = None
     calories: Optional[int] = None  # per serving
     time: Optional[int] = None
+    prep_time: Optional[int] = None
     cuisine: Optional[str] = None
     ingredients: Optional[list[Ingredient]] = None
 
@@ -26,8 +27,9 @@ class Recipe(BaseModel):
             f"{'-' * len(self.title)}\n"
             f"Cuisine: {self.cuisine or 'N/A'}\n"
             f"Time: {self.time or 'N/A'} mins\n"
+            f"Prep Time: {self.prep_time or 'N/A'} mins\n"
             f"Calories: {self.calories or 'N/A'} kcal\n"
-            f"Rating: {self.rating.average or 'N/A'} ({self.rating.reviews or 0} reviews)\n"
+            f"Rating: {self.rating.average if self.rating else 'N/A'} ({self.rating.count if self.rating else 0} reviews)\n"
             f"URL: {self.url}\n"
             f"Ingredients:\n"
             + "\n".join(f"  - {ing}" for ing in (self.ingredients or []))

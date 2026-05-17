@@ -1,5 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
+
 
 from api.dependencies import get_db
 from models.category import Category
@@ -7,6 +10,14 @@ from models.recipe import Recipe
 from models.ingredient import Ingredient
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -30,10 +41,35 @@ async def get_recipes(
     limit: int = Query(50, description="Limit the number of recipes returned", le=100),
     db: Session = Depends(get_db),
 ):
-    total = db.query(Recipe).count()
-    recipes = db.query(Recipe).offset(offset).limit(limit).all()
 
-    return {"total": total, "offset": offset, "limit": limit, "data": recipes}
+    total = db.query(Recipe).count()
+    recipes = (
+        db.query(Recipe)
+        .options(joinedload(Recipe.cuisine), joinedload(Recipe.macros))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    data = [
+        {
+            "id": r.id,
+            "title": r.title,
+            "slug": r.slug,
+            "image_url": r.image_url,
+            "prep_time": r.prep_time,
+            "rating": (
+                {"average": r.rating_average, "count": r.rating_count}
+                if r.rating_average is not None
+                else None
+            ),
+            "cuisine": r.cuisine.name if r.cuisine else None,
+            "calories": r.macros.energy_kcal if r.macros else None,
+        }
+        for r in recipes
+    ]
+
+    return {"total": total, "offset": offset, "limit": limit, "data": data}
 
 
 @app.get("/recipes/autocomplete")
@@ -98,6 +134,12 @@ async def get_recipe(slug: str, db: Session = Depends(get_db)):
         "id": recipe.id,
         "title": recipe.title,
         "slug": recipe.slug,
+        "prep_time": recipe.prep_time,
+        "rating": (
+            {"average": recipe.rating_average, "count": recipe.rating_count}
+            if recipe.rating_average is not None
+            else None
+        ),
         "image_url": recipe.image_url,
         "cuisine": recipe.cuisine.name if recipe.cuisine else None,
         "macros": (

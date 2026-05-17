@@ -45,7 +45,7 @@ def ingest_all(session):
                     sleep(REQUEST_DELAY)
 
                 except requests.RequestException as e:
-                    print(f"Failed to fetch {recipe['slug']}: {e}")
+                    print(f"Failed to fetch {slug}: {e}")
                     metrics["failed_recipes"] += 1
 
         session.commit()

@@ -27,16 +27,32 @@ def load_recipe(session: Session, data: dict):
     if data.get("cuisine"):
         cuisine = get_or_create(session, Cuisine, name=data["cuisine"])
 
-    recipe = get_or_create(
-        session,
-        Recipe,
-        gousto_id=data["gousto_id"],
-        slug=data["slug"],
-        defaults={
-            "title": data["title"],
-            "image_url": data.get("image_url"),
-        },
+    recipe = (
+        session.query(Recipe)
+        .filter((Recipe.gousto_id == data["gousto_id"]) | (Recipe.slug == data["slug"]))
+        .first()
     )
+
+    if not recipe:
+        recipe = Recipe(
+            gousto_id=data["gousto_id"],
+            slug=data["slug"],
+            title=data["title"],
+            image_url=data.get("image_url"),
+            prep_time=data.get("prep_time"),
+            rating_average=data.get("rating_average"),
+            rating_count=data.get("rating_count"),
+        )
+        session.add(recipe)
+        session.flush()
+    else:
+        # Update existing recipe's scalar fields
+        recipe.title = data["title"]
+        recipe.image_url = data.get("image_url")
+        recipe.prep_time = data.get("prep_time")
+        recipe.rating_average = data.get("rating_average")
+        recipe.rating_count = data.get("rating_count")
+        session.flush()
 
     # attach cuisine (safe even if already exists)
     recipe.cuisine = cuisine

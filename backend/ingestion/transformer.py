@@ -43,6 +43,21 @@ def transform_recipe_data(d: dict, slug: str) -> dict:
         "title": " ".join(d["title"].split()),
         "slug": slug,
         "image_url": images[1]["image"] if len(images) > 1 else None,
+        "prep_time": (
+            d.get("prep_times", {}).get("for_2")
+            if isinstance(d.get("prep_times"), dict)
+            else None
+        ),
+        "rating_average": (
+            d.get("rating", {}).get("average")
+            if isinstance(d.get("rating"), dict)
+            else None
+        ),
+        "rating_count": (
+            d.get("rating", {}).get("count")
+            if isinstance(d.get("rating"), dict)
+            else None
+        ),
         "cuisine": clean_string(d["cuisine"]["title"]) if d.get("cuisine") else None,
         "ingredients": dedupe_list(
             [clean_string(i["name"]) for i in d.get("ingredients", [])]
