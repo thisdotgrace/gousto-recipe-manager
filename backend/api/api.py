@@ -11,7 +11,17 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    import traceback
+
+    try:
+        from sqlalchemy import text
+        from db.session import SessionLocal
+
+        db = SessionLocal()
+        total = db.execute(text("SELECT count(*) FROM recipes")).scalar()
+        return {"message": "Hello World", "db_count": total}
+    except Exception as e:
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 
 @app.get("/recipes")
@@ -55,6 +65,14 @@ async def autocomplete_recipes(
     return {"total": total, "offset": offset, "limit": limit, "data": data}
 
 
+@app.get("/recipes/cuisines")
+async def get_cuisines(db: Session = Depends(get_db)):
+    from models.cuisine import Cuisine
+
+    cuisines = db.query(Cuisine).all()
+    return {"cuisines": cuisines}
+
+
 @app.get("/recipes/{slug}")
 async def get_recipe(slug: str, db: Session = Depends(get_db)):
     """Fetch full recipe details including macros, ingredients, and cuisine."""
@@ -75,13 +93,26 @@ async def get_recipe(slug: str, db: Session = Depends(get_db)):
 
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
-    return recipe
 
-
-@app.get("/recipes/cuisines")
-async def get_cuisines(db: Session = Depends(get_db)):
-    cuisines = db.query(Recipe.cuisine).distinct().all()
-    return {"cuisines": cuisines}
+    return {
+        "id": recipe.id,
+        "title": recipe.title,
+        "slug": recipe.slug,
+        "image_url": recipe.image_url,
+        "cuisine": recipe.cuisine.name if recipe.cuisine else None,
+        "macros": (
+            {
+                "energy_kcal": recipe.macros.energy_kcal,
+                "protein_g": recipe.macros.protein_g,
+                "fat_g": recipe.macros.fat_g,
+                "carbs_g": recipe.macros.carbs_g,
+            }
+            if recipe.macros
+            else None
+        ),
+        "categories": [c.slug for c in recipe.categories],
+        "ingredients": [i.name for i in recipe.ingredients],
+    }
 
 
 @app.get("/categories")
