@@ -33,16 +33,16 @@ const items = [
 
 export function AppSidebar() {
   return (
-    <Sidebar collapsible="icon">
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Gousto Manager</SidebarGroupLabel>
+    <Sidebar collapsible="icon" className="dark:bg-slate-900 dark:border-slate-700">
+      <SidebarContent className="dark:bg-slate-900">
+        <SidebarGroup className="dark:border-slate-700">
+          <SidebarGroupLabel className="dark:text-slate-400">Gousto Manager</SidebarGroupLabel>
 
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="dark:hover:bg-slate-800 dark:text-slate-300">
                     <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>

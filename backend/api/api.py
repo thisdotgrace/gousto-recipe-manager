@@ -1,13 +1,60 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, selectinload
 
 
 from api.dependencies import get_db
 from models.category import Category
 from models.recipe import Recipe
 from models.ingredient import Ingredient
+
+
+def serialize_macros(macros):
+    if not macros:
+        return None
+
+    return {
+        "energy_kcal": macros.energy_kcal,
+        "protein_g": macros.protein_g,
+        "fat_g": macros.fat_g,
+        "saturates_g": macros.saturates_g,
+        "carbs_g": macros.carbs_g,
+        "sugars_g": macros.sugars_g,
+        "fibre_g": macros.fibre_g,
+        "salt_g": macros.salt_g,
+    }
+
+
+def serialize_recipe(recipe):
+    categories = list(recipe.categories or [])
+    themes = []
+    seen_theme_titles = set()
+
+    for category in categories:
+        for theme in category.themes or []:
+            if theme.title not in seen_theme_titles:
+                seen_theme_titles.add(theme.title)
+                themes.append(theme.title)
+
+    return {
+        "id": recipe.id,
+        "title": recipe.title,
+        "slug": recipe.slug,
+        "image_url": recipe.image_url,
+        "prep_time": recipe.prep_time,
+        "rating": (
+            {"average": recipe.rating_average, "count": recipe.rating_count}
+            if recipe.rating_average is not None
+            else None
+        ),
+        "cuisine": recipe.cuisine.name if recipe.cuisine else None,
+        "calories": recipe.macros.energy_kcal if recipe.macros else None,
+        "macros": serialize_macros(recipe.macros),
+        "ingredients": [ingredient.name for ingredient in recipe.ingredients or []],
+        "categories": [category.slug for category in categories],
+        "themes": themes,
+    }
+
 
 app = FastAPI()
 
@@ -45,29 +92,18 @@ async def get_recipes(
     total = db.query(Recipe).count()
     recipes = (
         db.query(Recipe)
-        .options(joinedload(Recipe.cuisine), joinedload(Recipe.macros))
+        .options(
+            selectinload(Recipe.cuisine),
+            selectinload(Recipe.macros),
+            selectinload(Recipe.ingredients),
+            selectinload(Recipe.categories).selectinload(Category.themes),
+        )
         .offset(offset)
         .limit(limit)
         .all()
     )
 
-    data = [
-        {
-            "id": r.id,
-            "title": r.title,
-            "slug": r.slug,
-            "image_url": r.image_url,
-            "prep_time": r.prep_time,
-            "rating": (
-                {"average": r.rating_average, "count": r.rating_count}
-                if r.rating_average is not None
-                else None
-            ),
-            "cuisine": r.cuisine.name if r.cuisine else None,
-            "calories": r.macros.energy_kcal if r.macros else None,
-        }
-        for r in recipes
-    ]
+    data = [serialize_recipe(recipe) for recipe in recipes]
 
     return {"total": total, "offset": offset, "limit": limit, "data": data}
 
@@ -112,16 +148,13 @@ async def get_cuisines(db: Session = Depends(get_db)):
 @app.get("/recipes/{slug}")
 async def get_recipe(slug: str, db: Session = Depends(get_db)):
     """Fetch full recipe details including macros, ingredients, and cuisine."""
-    from sqlalchemy.orm import joinedload
-
-    # joinedload eagerly loads the related tables so you don't hit the N+1 queries problem
     recipe = (
         db.query(Recipe)
         .options(
-            joinedload(Recipe.ingredients),
-            joinedload(Recipe.macros),
-            joinedload(Recipe.cuisine),
-            joinedload(Recipe.categories),
+            selectinload(Recipe.ingredients),
+            selectinload(Recipe.macros),
+            selectinload(Recipe.cuisine),
+            selectinload(Recipe.categories).selectinload(Category.themes),
         )
         .filter(Recipe.slug == slug)
         .first()
@@ -130,31 +163,7 @@ async def get_recipe(slug: str, db: Session = Depends(get_db)):
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    return {
-        "id": recipe.id,
-        "title": recipe.title,
-        "slug": recipe.slug,
-        "prep_time": recipe.prep_time,
-        "rating": (
-            {"average": recipe.rating_average, "count": recipe.rating_count}
-            if recipe.rating_average is not None
-            else None
-        ),
-        "image_url": recipe.image_url,
-        "cuisine": recipe.cuisine.name if recipe.cuisine else None,
-        "macros": (
-            {
-                "energy_kcal": recipe.macros.energy_kcal,
-                "protein_g": recipe.macros.protein_g,
-                "fat_g": recipe.macros.fat_g,
-                "carbs_g": recipe.macros.carbs_g,
-            }
-            if recipe.macros
-            else None
-        ),
-        "categories": [c.slug for c in recipe.categories],
-        "ingredients": [i.name for i in recipe.ingredients],
-    }
+    return serialize_recipe(recipe)
 
 
 @app.get("/categories")

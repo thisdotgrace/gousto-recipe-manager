@@ -11,6 +11,19 @@ export interface Recipe {
     count: number;
   };
   cuisine?: string;
+  macros?: {
+    energy_kcal?: number;
+    protein_g?: number;
+    fat_g?: number;
+    saturates_g?: number;
+    carbs_g?: number;
+    sugars_g?: number;
+    fibre_g?: number;
+    salt_g?: number;
+  };
+  ingredients?: string[];
+  categories?: string[];
+  themes?: string[];
 }
 
 export interface RecipesResponse {
