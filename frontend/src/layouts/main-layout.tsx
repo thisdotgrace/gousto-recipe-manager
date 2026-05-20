@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/sidebar"
 
 import { AppSidebar } from "@/components/app/app-sidebar"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { ThemeToggle } from "@/components/app/theme-toggle"
 import React from "react"
 
 export default function MainLayout() {

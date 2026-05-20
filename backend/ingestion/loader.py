@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from models import Recipe, Cuisine, Ingredient, Category, RecipeMacros
 from models.theme import Theme
@@ -17,6 +18,32 @@ def get_or_create(session: Session, model, defaults=None, **kwargs):
     return obj
 
 
+def get_or_create_by_any(
+    session: Session, model, keys: dict, defaults: dict | None = None
+):
+    """Find a record by any of the provided keys (OR match). If found, update scalars from
+    `defaults` and return; otherwise create with `keys` + `defaults`.
+
+    This keeps loader logic concise while avoiding UNIQUE conflicts when the
+    same entity is referenced by different identifiers.
+    """
+    # build OR filters for non-None keys
+    filters = [getattr(model, k) == v for k, v in keys.items() if v is not None]
+    obj = session.query(model).filter(or_(*filters)).first() if filters else None
+
+    if obj:
+        if defaults:
+            for k, v in defaults.items():
+                setattr(obj, k, v)
+        return obj
+
+    params = {**keys, **(defaults or {})}
+    obj = model(**params)
+    session.add(obj)
+    session.flush()
+    return obj
+
+
 def load_recipe(session: Session, data: dict):
     """
     Loads a single transformed recipe into the database.
@@ -27,32 +54,18 @@ def load_recipe(session: Session, data: dict):
     if data.get("cuisine"):
         cuisine = get_or_create(session, Cuisine, name=data["cuisine"])
 
-    recipe = (
-        session.query(Recipe)
-        .filter((Recipe.gousto_id == data["gousto_id"]) | (Recipe.slug == data["slug"]))
-        .first()
+    recipe = get_or_create_by_any(
+        session,
+        Recipe,
+        keys={"gousto_id": data["gousto_id"], "slug": data["slug"]},
+        defaults={
+            "title": data["title"],
+            "image_url": data.get("image_url"),
+            "prep_time": data.get("prep_time"),
+            "rating_average": data.get("rating_average"),
+            "rating_count": data.get("rating_count"),
+        },
     )
-
-    if not recipe:
-        recipe = Recipe(
-            gousto_id=data["gousto_id"],
-            slug=data["slug"],
-            title=data["title"],
-            image_url=data.get("image_url"),
-            prep_time=data.get("prep_time"),
-            rating_average=data.get("rating_average"),
-            rating_count=data.get("rating_count"),
-        )
-        session.add(recipe)
-        session.flush()
-    else:
-        # Update existing recipe's scalar fields
-        recipe.title = data["title"]
-        recipe.image_url = data.get("image_url")
-        recipe.prep_time = data.get("prep_time")
-        recipe.rating_average = data.get("rating_average")
-        recipe.rating_count = data.get("rating_count")
-        session.flush()
 
     # attach cuisine (safe even if already exists)
     recipe.cuisine = cuisine

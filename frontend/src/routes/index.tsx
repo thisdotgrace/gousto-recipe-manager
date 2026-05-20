@@ -5,7 +5,7 @@ import {
 import MainLayout from "@/layouts/main-layout"
 
 import HomePage from "@/pages/home"
-import RecipesPage from "@/pages/recipes"
+import RecipesPage from "@/features/recipes/pages/recipes"
 import React from "react"
 
 export const router = createBrowserRouter([

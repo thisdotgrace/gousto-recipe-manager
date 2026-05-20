@@ -1,59 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import or_
 
 
-from api.dependencies import get_db
+from api.dependencies import get_db, get_api_base_url
+from api.serializers import serialize_recipe
+from models.cuisine import Cuisine
 from models.category import Category
 from models.recipe import Recipe
 from models.ingredient import Ingredient
-
-
-def serialize_macros(macros):
-    if not macros:
-        return None
-
-    return {
-        "energy_kcal": macros.energy_kcal,
-        "protein_g": macros.protein_g,
-        "fat_g": macros.fat_g,
-        "saturates_g": macros.saturates_g,
-        "carbs_g": macros.carbs_g,
-        "sugars_g": macros.sugars_g,
-        "fibre_g": macros.fibre_g,
-        "salt_g": macros.salt_g,
-    }
-
-
-def serialize_recipe(recipe):
-    categories = list(recipe.categories or [])
-    themes = []
-    seen_theme_titles = set()
-
-    for category in categories:
-        for theme in category.themes or []:
-            if theme.title not in seen_theme_titles:
-                seen_theme_titles.add(theme.title)
-                themes.append(theme.title)
-
-    return {
-        "id": recipe.id,
-        "title": recipe.title,
-        "slug": recipe.slug,
-        "image_url": recipe.image_url,
-        "prep_time": recipe.prep_time,
-        "rating": (
-            {"average": recipe.rating_average, "count": recipe.rating_count}
-            if recipe.rating_average is not None
-            else None
-        ),
-        "cuisine": recipe.cuisine.name if recipe.cuisine else None,
-        "calories": recipe.macros.energy_kcal if recipe.macros else None,
-        "macros": serialize_macros(recipe.macros),
-        "ingredients": [ingredient.name for ingredient in recipe.ingredients or []],
-        "categories": [category.slug for category in categories],
-        "themes": themes,
-    }
 
 
 app = FastAPI()
@@ -87,6 +43,7 @@ async def get_recipes(
     offset: int = Query(0, description="Skip the first N recipes"),
     limit: int = Query(50, description="Limit the number of recipes returned", le=100),
     db: Session = Depends(get_db),
+    base_url: str = Depends(get_api_base_url),
 ):
 
     total = db.query(Recipe).count()
@@ -103,9 +60,41 @@ async def get_recipes(
         .all()
     )
 
-    data = [serialize_recipe(recipe) for recipe in recipes]
+    data = [serialize_recipe(recipe, base_url) for recipe in recipes]
 
     return {"total": total, "offset": offset, "limit": limit, "data": data}
+
+
+@app.get("/recipes/search")
+async def search_recipes(
+    q: str = Query(..., min_length=1),
+    offset: int = Query(0),
+    limit: int = Query(12, le=100),
+    db: Session = Depends(get_db),
+):
+
+    query = q.strip()
+    search = f"%{query}%"
+
+    base_query = db.query(Recipe).filter(
+        or_(
+            Recipe.title.ilike(search),
+            Recipe.slug.ilike(search),
+            Recipe.cuisine.has(Cuisine.name.ilike(search)),
+            Recipe.ingredients.any(Ingredient.name.ilike(search)),
+            Recipe.categories.any(Category.slug.ilike(search)),
+        )
+    )
+
+    total = base_query.count()
+    recipes = base_query.offset(offset).limit(limit).all()
+
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "data": [serialize_recipe(recipe) for recipe in recipes],
+    }
 
 
 @app.get("/recipes/autocomplete")
@@ -146,7 +135,9 @@ async def get_cuisines(db: Session = Depends(get_db)):
 
 
 @app.get("/recipes/{slug}")
-async def get_recipe(slug: str, db: Session = Depends(get_db)):
+async def get_recipe(
+    slug: str, db: Session = Depends(get_db), base_url: str = Depends(get_api_base_url)
+):
     """Fetch full recipe details including macros, ingredients, and cuisine."""
     recipe = (
         db.query(Recipe)
@@ -163,7 +154,7 @@ async def get_recipe(slug: str, db: Session = Depends(get_db)):
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    return serialize_recipe(recipe)
+    return serialize_recipe(recipe, base_url)
 
 
 @app.get("/categories")
